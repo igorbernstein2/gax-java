@@ -39,6 +39,7 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.threeten.bp.Duration;
+import org.threeten.bp.Instant;
 
 /**
  * Context for an API call.
@@ -72,6 +73,10 @@ public interface ApiCallContext extends RetryingContext {
   /** Returns the configured per-RPC timeout. */
   @Nullable
   Duration getTimeout();
+
+  ApiCallContext withDeadline(@Nullable Instant deadline);
+
+  @Nullable Instant getDeadline();
 
   /**
    * Returns a new ApiCallContext with the given stream timeout set.

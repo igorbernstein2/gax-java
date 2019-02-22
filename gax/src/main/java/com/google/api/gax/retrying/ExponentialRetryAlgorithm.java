@@ -137,7 +137,10 @@ public class ExponentialRetryAlgorithm implements TimedRetryAlgorithm {
 
     return totalTimeSpentNanos <= globalSettings.getTotalTimeout().toNanos()
         && (globalSettings.getMaxAttempts() <= 0
-            || nextAttemptSettings.getAttemptCount() < globalSettings.getMaxAttempts());
+            || nextAttemptSettings.getAttemptCount() < globalSettings.getMaxAttempts())
+        && (
+            nextAttemptSettings.getDeadline() == null || nextAttemptSettings.getDeadline().getNano() + nextAttemptSettings.getRandomizedRetryDelay().toNanos() > clock.nanoTime()
+        );
   }
 
   // Injecting Random is not possible here, as Random does not provide nextLong(long bound) method

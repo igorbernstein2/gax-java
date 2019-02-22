@@ -43,15 +43,19 @@ import io.grpc.CallCredentials;
 import io.grpc.CallOptions;
 import io.grpc.CallOptions.Key;
 import io.grpc.Channel;
+import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.Metadata;
 import io.grpc.auth.MoreCallCredentials;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.threeten.bp.Duration;
+import org.threeten.bp.Instant;
+import org.threeten.bp.temporal.ChronoUnit;
 
 /**
  * GrpcCallContext encapsulates context data used to make a grpc call.
@@ -76,6 +80,7 @@ public final class GrpcCallContext implements ApiCallContext {
 
   /** Returns an empty instance with a null channel and default {@link CallOptions}. */
   public static GrpcCallContext createDefault() {
+
     return new GrpcCallContext(
         null, CallOptions.DEFAULT, null, null, null, null, ImmutableMap.<String, List<String>>of());
   }
@@ -163,6 +168,38 @@ public final class GrpcCallContext implements ApiCallContext {
         this.streamIdleTimeout,
         this.channelAffinity,
         this.extraHeaders);
+  }
+
+  @Override
+  public ApiCallContext withDeadline(@Nullable Instant deadline) {
+    Deadline newGrpcDeadline = null;
+
+    if (deadline != null) {
+      Duration remaining = Duration.between(Instant.now(), deadline);
+      if (remaining.compareTo(Duration.of(Long.MAX_VALUE, ChronoUnit.NANOS)) > 0) {
+        remaining = Duration.of(Long.MAX_VALUE, ChronoUnit.NANOS);
+      }
+      newGrpcDeadline = Deadline.after(remaining.toNanos(), TimeUnit.NANOSECONDS);
+    }
+
+    return withCallOptions(callOptions.withDeadline(newGrpcDeadline));
+  }
+
+  @Nullable
+  @Override
+  public Instant getDeadline() {
+    Deadline grpcDeadline = callOptions.getDeadline();
+
+    if (grpcDeadline == null) {
+      return null;
+    }
+
+    long asNanos = callOptions.getDeadline().timeRemaining(TimeUnit.NANOSECONDS);
+
+    long remainingSecs = TimeUnit.NANOSECONDS.toSeconds(asNanos);
+    long remainingNanos = asNanos % TimeUnit.SECONDS.toNanos(1);
+
+    return Instant.ofEpochSecond(remainingSecs, remainingNanos);
   }
 
   @Nullable

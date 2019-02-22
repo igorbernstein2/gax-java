@@ -41,6 +41,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
+import org.threeten.bp.Instant;
 
 /**
  * For internal use only.
@@ -74,6 +75,12 @@ class BasicRetryingFuture<ResponseT> extends AbstractFuture<ResponseT>
     this.retryingContext = checkNotNull(context);
 
     this.attemptSettings = retryAlgorithm.createFirstAttempt();
+
+    if (context.getDeadline() != null) {
+      this.attemptSettings = this.getAttemptSettings().toBuilder()
+          .setDeadline(context.getDeadline())
+          .build();
+    }
 
     // A micro crime, letting "this" reference to escape from constructor before initialization is
     // completed (via internal non-static class CompletionListener). But it is guaranteed to be ok,

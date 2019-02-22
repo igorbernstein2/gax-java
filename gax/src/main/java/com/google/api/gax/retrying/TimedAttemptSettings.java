@@ -33,7 +33,9 @@ import com.google.api.core.ApiClock;
 import com.google.api.core.BetaApi;
 import com.google.auto.value.AutoValue;
 import com.google.auto.value.AutoValue.Builder;
+import javax.annotation.Nullable;
 import org.threeten.bp.Duration;
+import org.threeten.bp.Instant;
 
 /** Timed attempt execution settings. Defines time-specific properties of a retry attempt. */
 @BetaApi
@@ -51,6 +53,9 @@ public abstract class TimedAttemptSettings {
 
   /** Returns rpc timeout used for this attempt. */
   public abstract Duration getRpcTimeout();
+
+  @Nullable
+  public abstract Instant getDeadline();
 
   /**
    * Returns randomized attempt delay. By default this value is calculated based on the {@code
@@ -96,6 +101,8 @@ public abstract class TimedAttemptSettings {
 
     /** Sets rpc timeout used for this attempt. */
     public abstract Builder setRpcTimeout(Duration value);
+
+    public abstract Builder setDeadline(@Nullable Instant deadline);
 
     /**
      * Sets randomized attempt delay. By default this value is calculated based on the {@code
