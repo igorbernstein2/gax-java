@@ -30,6 +30,7 @@
 package com.google.api.gax.retrying;
 
 import static com.google.api.gax.retrying.FailingCallable.FAST_RETRY_SETTINGS;
+import static com.google.common.truth.Truth.*;
 import static junit.framework.TestCase.assertFalse;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -40,6 +41,9 @@ import static org.junit.Assert.assertTrue;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.NanoClock;
 import com.google.api.gax.retrying.FailingCallable.CustomException;
+import io.grpc.Context;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -330,5 +334,50 @@ public class ScheduledRetryingExecutorTest extends AbstractRetryingExecutorTest 
       assertFutureFail(future, RejectedExecutionException.class);
       localExecutor.shutdownNow();
     }
+  }
+
+  @Test
+  public void testContextPropagation() throws Exception {
+
+    ScheduledExecutorService localExecutor = Executors.newSingleThreadScheduledExecutor();
+
+    RetrySettings retrySettings =
+        FAST_RETRY_SETTINGS
+            .toBuilder()
+            .setTotalTimeout(Duration.ofMillis(1000L))
+            .setMaxAttempts(2)
+            .build();
+
+    final Context.Key<String> key = Context.key("testContextPropagation-key");
+    final String expectedValue = "my-value";
+    final List<String> actualValues = new ArrayList<>();
+
+    FailingCallable callable = new FailingCallable(1, "SUCCESS", tracer) {
+      @Override
+      public String call() throws Exception {
+        actualValues.add(key.get());
+        return super.call();
+      }
+    };
+
+    RetryingExecutorWithContext<String> executor =
+        getRetryingExecutor(getAlgorithm(retrySettings, 0, null), localExecutor);
+
+    Context prevContext = Context.current()
+        .withValue(key, expectedValue)
+        .attach();
+
+    RetryingFuture<String> future = executor.createFuture(callable, retryingContext);
+
+    try {
+      future.setAttemptFuture(executor.submit(future));
+      future.get();
+    } finally {
+      prevContext.attach();
+    }
+
+    assertThat(actualValues).containsExactly(expectedValue, expectedValue);
+
+    localExecutor.shutdownNow();
   }
 }

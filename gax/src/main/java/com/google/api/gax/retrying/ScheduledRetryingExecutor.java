@@ -36,6 +36,7 @@ import com.google.api.core.ListenableFutureToApiFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.grpc.Context;
 import java.util.concurrent.Callable;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -99,7 +100,11 @@ public class ScheduledRetryingExecutor<ResponseT>
   @Override
   public RetryingFuture<ResponseT> createFuture(
       Callable<ResponseT> callable, RetryingContext context) {
-    return new CallbackChainRetryingFuture<>(callable, retryAlgorithm, this, context);
+
+    // Wrap the callable in the current context. This will make sure that it is propagated on retry attempts.
+    Callable<ResponseT> attemptCallableWithContext = Context.current().wrap(callable);
+
+    return new CallbackChainRetryingFuture<>(attemptCallableWithContext, retryAlgorithm, this, context);
   }
 
   /**
